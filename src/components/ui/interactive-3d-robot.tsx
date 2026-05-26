@@ -1,6 +1,7 @@
 'use client';
 
-import { Suspense, lazy } from 'react';
+import { Suspense, lazy, useState, useCallback, Component } from 'react';
+
 const Spline = lazy(() => import('@splinetool/react-spline'));
 
 interface InteractiveRobotSplineProps {
@@ -8,24 +9,96 @@ interface InteractiveRobotSplineProps {
   className?: string;
 }
 
-export function InteractiveRobotSpline({ scene, className }: InteractiveRobotSplineProps) {
+function RobotPlaceholder({ loading = false }: { loading?: boolean }) {
   return (
-    <Suspense
-      fallback={
-        <div className={`w-full h-full flex items-center justify-center bg-zinc-950 text-white ${className}`}>
-          <svg className="animate-spin h-5 w-5 text-purple-500 mr-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l2-2.647z"></path>
-          </svg>
-        </div>
-      }
+    <div
+      className="w-full h-full flex flex-col items-center justify-center"
+      style={{
+        background: 'radial-gradient(ellipse at 50% 60%, rgba(124,58,237,0.28) 0%, rgba(10,5,22,0.85) 70%)',
+      }}
     >
-      <div className={`w-full h-full relative ${className}`} style={{ clipPath: "inset(0px 0px 48px 0px)" }}>
-        <Spline
-          scene={scene}
-          className="w-full h-full" 
+      <div className={`flex flex-col items-center gap-2 ${loading ? 'animate-pulse' : ''}`} style={{ opacity: 0.65 }}>
+        <div className="w-16 h-12 rounded-2xl bg-purple-700/40 border border-purple-500/30" />
+        <div className="w-3 h-4 rounded-sm bg-purple-700/30" />
+        <div className="w-24 h-20 rounded-2xl bg-purple-700/40 border border-purple-500/30" />
+        <div className="w-32 h-8 rounded-xl bg-zinc-800/50 border border-zinc-700/30" />
+      </div>
+      {loading && (
+        <p className="text-[10px] text-zinc-600 uppercase tracking-widest mt-3">Cargando robot…</p>
+      )}
+    </div>
+  );
+}
+
+class SplineErrorBoundary extends Component<
+  { children: React.ReactNode; fallback: React.ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: { children: React.ReactNode; fallback: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  render() {
+    if (this.state.hasError) return this.props.fallback;
+    return this.props.children;
+  }
+}
+
+export function InteractiveRobotSpline({ scene, className }: InteractiveRobotSplineProps) {
+  const [loaded, setLoaded] = useState(false);
+  const handleLoad = useCallback(() => setLoaded(true), []);
+
+  return (
+    <div className={className ?? 'w-full h-full min-h-[240px] sm:min-h-[360px]'}>
+      <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
+        {/* Gradient placeholder visible until Spline finishes loading */}
+        {!loaded && (
+          <div className="absolute inset-0 z-10">
+            <RobotPlaceholder loading />
+          </div>
+        )}
+
+        <SplineErrorBoundary fallback={<div className="absolute inset-0"><RobotPlaceholder /></div>}>
+          <Suspense fallback={null}>
+            <Spline
+              scene={scene}
+              className="w-full h-full"
+              onLoad={handleLoad}
+            />
+          </Suspense>
+        </SplineErrorBoundary>
+
+        {/* Gradient fade — blends robot bottom into hero background */}
+        <div
+          style={{
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            width: '100%',
+            height: '80px',
+            background: 'linear-gradient(to top, rgb(10,5,22) 40%, transparent 100%)',
+            zIndex: 50,
+            pointerEvents: 'none',
+          }}
+        />
+
+        {/* Solid strip — covers the Spline watermark painted on the WebGL canvas */}
+        <div
+          style={{
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            width: '100%',
+            height: '48px',
+            background: 'rgb(10,5,22)',
+            zIndex: 51,
+            pointerEvents: 'none',
+          }}
         />
       </div>
-    </Suspense>
+    </div>
   );
 }

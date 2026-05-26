@@ -82,9 +82,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:site", content: "@Lovable" },
     ],
     links: [
+      { rel: "stylesheet", href: appCss },
+      { rel: "preconnect", href: "https://assets.calendly.com" },
+      { rel: "preconnect", href: "https://calendly.com" },
+      { rel: "stylesheet", href: "https://assets.calendly.com/assets/external/widget.css" },
+    ],
+    scripts: [
       {
-        rel: "stylesheet",
-        href: appCss,
+        src: "https://assets.calendly.com/assets/external/widget.js",
+        async: true,
+        type: "text/javascript",
       },
     ],
   }),

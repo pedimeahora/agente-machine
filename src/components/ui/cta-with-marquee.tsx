@@ -29,7 +29,7 @@ function ScrambleButton({ text, onClick }: { text: string; onClick?: () => void 
     <button
       onMouseEnter={scramble}
       onClick={onClick}
-      className="px-8 py-3.5 bg-white text-black rounded-full font-black text-sm uppercase tracking-widest hover:bg-zinc-100 transition-all shadow-lg shadow-white/10 pointer-events-auto"
+      className="px-5 sm:px-8 py-3.5 bg-white text-black rounded-full font-black text-sm uppercase tracking-widest hover:bg-zinc-100 transition-all shadow-lg shadow-white/10 pointer-events-auto"
     >
       {displayText}
     </button>
@@ -132,7 +132,7 @@ export function CTAWithMarquee({ onCTAClick }: CTAWithMarqueeProps) {
 
       <div className="grid lg:grid-cols-2 gap-0 items-center">
         {/* Left — Copy */}
-        <div className="flex flex-col justify-center p-8 sm:p-12 space-y-6 relative z-10">
+        <div className="flex flex-col justify-center p-5 sm:p-8 lg:p-12 space-y-5 sm:space-y-6 relative z-10">
           <div className="inline-flex items-center gap-2 text-[10px] font-black tracking-widest uppercase text-purple-400 bg-purple-500/10 border border-purple-500/20 px-3 py-1.5 rounded-full w-fit">
             <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse" />
             Trabajamos Contigo
@@ -168,7 +168,7 @@ export function CTAWithMarquee({ onCTAClick }: CTAWithMarqueeProps) {
 
         {/* Right — Automation Flow Visual */}
         <div
-          className="relative min-h-[320px] border-t lg:border-t-0 lg:border-l overflow-hidden"
+          className="relative min-h-[240px] sm:min-h-[320px] border-t lg:border-t-0 lg:border-l overflow-hidden"
           style={{ borderColor: "rgba(168,85,247,0.15)" }}
         >
           {/* Background grid */}

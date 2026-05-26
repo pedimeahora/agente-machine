@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, lazy, Suspense } from "react";
 import {
   Sparkles, LayoutDashboard, Bot, Send,
   CheckCircle, MessageCircle, Calendar, ChevronDown, Zap, Clock, TrendingUp, Shield
@@ -7,9 +7,14 @@ import { Card } from "@/components/ui/card";
 import { Spotlight } from "@/components/ui/spotlight";
 import { TestimonialCards, TestimonialAvatars } from "@/components/ui/testimonial";
 import { CTAWithMarquee } from "@/components/ui/cta-with-marquee";
-import { InteractiveRobotSpline } from "@/components/ui/interactive-3d-robot";
-import { AgentInteractionShowcase } from "@/components/site/AgentInteractionShowcase";
-import { DottedSurface } from "@/components/ui/dotted-surface";
+
+// Lazy-load heavy 3D bundles so they don't block the initial render
+const InteractiveRobotSpline = lazy(() =>
+  import("@/components/ui/interactive-3d-robot").then((m) => ({ default: m.InteractiveRobotSpline }))
+);
+const DottedSurface = lazy(() =>
+  import("@/components/ui/dotted-surface").then((m) => ({ default: m.DottedSurface }))
+);
 
 
 /* ─────────────────────────────────────────────
@@ -17,12 +22,18 @@ import { DottedSurface } from "@/components/ui/dotted-surface";
 ───────────────────────────────────────────── */
 declare global { interface Window { Calendly?: { initPopupWidget: (opts: { url: string }) => void } } }
 
+const CALENDLY_URL = "https://calendly.com/pedimeahora";
+
 function openCalendlyPopup() {
   if (window.Calendly) {
-    window.Calendly.initPopupWidget({ url: "https://calendly.com/pedimeahora" });
-  } else {
-    window.open("https://calendly.com/pedimeahora", "_blank");
+    window.Calendly.initPopupWidget({ url: CALENDLY_URL });
+    return;
   }
+  // Script not yet ready — load it on demand and retry
+  const script = document.createElement("script");
+  script.src = "https://assets.calendly.com/assets/external/widget.js";
+  script.onload = () => window.Calendly?.initPopupWidget({ url: CALENDLY_URL });
+  document.head.appendChild(script);
 }
 
 /* ─────────────────────────────────────────────
@@ -117,13 +128,33 @@ export function InteractiveRobotSpline({
 }`;
 
 /* ─────────────────────────────────────────────
+   Robot skeleton — shown while Spline bundle downloads
+───────────────────────────────────────────── */
+function RobotSkeleton() {
+  return (
+    <div className="w-full h-full absolute inset-0 flex items-center justify-center">
+      <div className="flex flex-col items-center gap-3 animate-pulse">
+        {/* Head */}
+        <div className="w-20 h-16 rounded-2xl bg-purple-900/40 border border-purple-700/30" />
+        {/* Neck */}
+        <div className="w-4 h-5 rounded-sm bg-purple-900/30" />
+        {/* Body */}
+        <div className="w-28 h-24 rounded-2xl bg-purple-900/40 border border-purple-700/30" />
+        {/* Base */}
+        <div className="w-36 h-10 rounded-xl bg-zinc-800/50 border border-zinc-700/30" />
+        <p className="text-[10px] text-zinc-600 uppercase tracking-widest mt-1">Cargando robot…</p>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────
    Main page
 ───────────────────────────────────────────── */
 
 export default function Index() {
   const [formData, setFormData] = useState({ nombre: "", email: "", mensaje: "" });
   const [enviado, setEnviado] = useState(false);
-  const calendlyRef = useRef<HTMLElement | null>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -134,18 +165,16 @@ export default function Index() {
     }, 3000);
   };
 
-  const scrollToCalendly = () => {
-    openCalendlyPopup();
-  };
-
   return (
     <div
       className="w-full min-h-screen text-zinc-100 font-sans relative flex flex-col overflow-x-hidden selection:bg-purple-500/20"
       style={{ backgroundColor: "#0a0516", colorScheme: "dark" }}
     >
-      {/* PARTICLE BACKGROUND — full page */}
+      {/* PARTICLE BACKGROUND — full page, lazy-loaded so Three.js doesn't block initial paint */}
       <div className="fixed inset-0 z-0 pointer-events-none" style={{ background: "linear-gradient(160deg,#0a0516 0%,#05060f 50%,#0c051a 100%)" }}>
-        <DottedSurface />
+        <Suspense fallback={null}>
+          <DottedSurface />
+        </Suspense>
       </div>
 
       {/* BACKGROUND GLOWS on top of particle layer */}
@@ -169,11 +198,11 @@ export default function Index() {
             WhatsApp
           </a>
           <button
-            onClick={scrollToCalendly}
-            className="bg-zinc-900 border border-zinc-800 text-zinc-300 text-[11px] font-bold px-4 py-2 rounded-full hover:bg-zinc-800 transition-colors flex items-center gap-1.5"
+            onClick={openCalendlyPopup}
+            className="bg-zinc-900 border border-zinc-800 text-zinc-300 text-[11px] font-bold px-3 sm:px-4 py-2 rounded-full hover:bg-zinc-800 transition-colors flex items-center gap-1.5"
           >
             <Calendar className="w-3.5 h-3.5" />
-            Agendar Llamada
+            <span className="hidden sm:inline">Agendar </span>Llamada
           </button>
         </div>
       </nav>
@@ -185,15 +214,16 @@ export default function Index() {
           <Card className="w-full min-h-[520px] relative overflow-hidden" style={{ backgroundColor: "rgba(10,5,22,0.85)", borderColor: "rgba(168,85,247,0.2)" }}>
             <Spotlight className="-top-40 left-0 md:left-60 md:-top-20" fill="white" />
 
-            <div className="flex flex-col lg:flex-row h-full min-h-[520px]">
+            <div className="flex flex-col lg:flex-row">
               {/* Left content */}
-              <div className="flex-1 p-8 lg:p-12 relative z-10 flex flex-col justify-center space-y-6">
+              <div className="flex-1 p-5 sm:p-8 lg:p-12 relative z-10 flex flex-col justify-center space-y-5 sm:space-y-6">
                 <div className="inline-flex items-center space-x-2 px-3 py-1.5 rounded-full text-[10px] font-bold tracking-wider uppercase w-fit" style={{ backgroundColor: "rgba(168,85,247,0.1)", border: "1px solid rgba(168,85,247,0.3)", color: "#c084fc" }}>
                   <Sparkles className="w-3 h-3" style={{ color: "#a855f7" }} />
-                  <span>Automatización Empresarial · IA en Producción</span>
+                  <span className="sm:hidden">IA en Producción</span>
+                  <span className="hidden sm:inline">Automatización Empresarial · IA en Producción</span>
                 </div>
 
-                <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-[1.08]">
+                <h1 className="text-3xl sm:text-4xl lg:text-6xl font-black tracking-tight leading-[1.08]">
                   <span style={{ backgroundImage: "linear-gradient(180deg,#f9fafb,#9ca3af)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
                     ¿Cuántas horas<br />perdés por
                   </span>
@@ -214,7 +244,7 @@ export default function Index() {
 
                 <div className="flex flex-wrap gap-3 pt-2">
                   <button
-                    onClick={scrollToCalendly}
+                    onClick={openCalendlyPopup}
                     className="bg-white hover:bg-zinc-200 text-black px-6 py-3 rounded-full font-black text-xs uppercase tracking-widest flex items-center gap-2 transition-all shadow-lg"
                   >
                     <Calendar className="w-4 h-4" />
@@ -232,13 +262,15 @@ export default function Index() {
                 </div>
               </div>
 
-              {/* Right: 3D Robot Simulator */}
-              <div className="flex-1 p-4 lg:p-8 flex items-center justify-center relative min-h-[420px] lg:min-h-full">
-                <div className="w-full h-full relative z-20 min-h-[400px]">
-                  <InteractiveRobotSpline
-                    scene="https://prod.spline.design/PyzDhpQ9E5f1E3MT/scene.splinecode"
-                    className="w-full h-full absolute inset-0"
-                  />
+              {/* Right: 3D Robot — explicit heights so h-full resolves correctly on mobile flex-column */}
+              <div className="flex-1 p-4 lg:p-8 flex items-center justify-center relative">
+                <div className="w-full h-[280px] sm:h-[360px] lg:h-[480px] relative z-20">
+                  <Suspense fallback={<RobotSkeleton />}>
+                    <InteractiveRobotSpline
+                      scene="https://prod.spline.design/PyzDhpQ9E5f1E3MT/scene.splinecode"
+                      className="w-full h-full absolute inset-0"
+                    />
+                  </Suspense>
                 </div>
               </div>
             </div>
@@ -254,7 +286,7 @@ export default function Index() {
         </div>
 
         {/* ── STATS BAR ── */}
-        <section className="py-6 max-w-4xl mx-auto px-6">
+        <section className="py-4 sm:py-6 max-w-4xl mx-auto px-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
               { icon: Clock, label: "Horas ahorradas", value: "+20h", sub: "por semana por cliente", color: "#a855f7" },
@@ -262,19 +294,19 @@ export default function Index() {
               { icon: Zap, label: "Tiempo de respuesta", value: "< 1s", sub: "frente a las 4h manuales", color: "#f59e0b" },
               { icon: Shield, label: "Disponibilidad", value: "24/7", sub: "sin días libres ni feriados", color: "#10b981" },
             ].map((s, i) => (
-              <div key={i} className="rounded-2xl p-4 text-center" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                <s.icon className="w-5 h-5 mx-auto mb-2" style={{ color: s.color }} />
-                <div className="text-2xl font-black" style={{ color: s.color }}>{s.value}</div>
+              <div key={i} className="rounded-2xl p-3 sm:p-4 text-center" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                <s.icon className="w-5 h-5 mx-auto mb-1.5 sm:mb-2" style={{ color: s.color }} />
+                <div className="text-xl sm:text-2xl font-black" style={{ color: s.color }}>{s.value}</div>
                 <div className="text-[10px] font-bold uppercase tracking-wider mt-0.5" style={{ color: "#e4e4e7" }}>{s.label}</div>
-                <div className="text-[9px] mt-0.5" style={{ color: "#71717a" }}>{s.sub}</div>
+                <div className="text-[9px] mt-0.5 leading-tight" style={{ color: "#71717a" }}>{s.sub}</div>
               </div>
             ))}
           </div>
         </section>
 
         {/* ── SERVICIOS (BENTO GRID) ── */}
-        <section className="py-10 max-w-4xl mx-auto px-6">
-          <div className="text-center mb-8 space-y-2">
+        <section className="py-6 sm:py-10 max-w-4xl mx-auto px-6">
+          <div className="text-center mb-6 sm:mb-8 space-y-2">
             <div className="inline-flex items-center gap-2 text-[10px] font-bold tracking-widest uppercase px-3 py-1.5 rounded-full" style={{ color: "#a855f7", backgroundColor: "rgba(168,85,247,0.1)", border: "1px solid rgba(168,85,247,0.2)" }}>
               <Zap className="w-3 h-3" />
               Cómo lo hacemos
@@ -284,7 +316,7 @@ export default function Index() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div className="p-8 rounded-3xl flex flex-col justify-between min-h-[240px] transition-all duration-300 relative overflow-hidden group" style={{ background: "linear-gradient(180deg,rgba(10,5,22,0.95) 0%,rgba(5,3,12,0.98) 100%)", border: "1px solid rgba(168,85,247,0.15)" }}>
+            <div className="p-5 sm:p-8 rounded-3xl flex flex-col justify-between min-h-[220px] sm:min-h-[240px] transition-all duration-300 relative overflow-hidden group" style={{ background: "linear-gradient(180deg,rgba(10,5,22,0.95) 0%,rgba(5,3,12,0.98) 100%)", border: "1px solid rgba(168,85,247,0.15)" }}>
               <div className="absolute top-0 right-0 w-40 h-40 rounded-full blur-3xl transition-all group-hover:opacity-100 opacity-50" style={{ backgroundColor: "rgba(168,85,247,0.12)" }} />
               <div className="space-y-4 relative z-10">
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: "rgba(168,85,247,0.15)", border: "1px solid rgba(168,85,247,0.3)" }}>
@@ -300,7 +332,7 @@ export default function Index() {
               <div className="mt-4 text-[10px] font-bold uppercase tracking-widest" style={{ color: "#a855f7" }}>→ Next.js · Tailwind · SEO técnico</div>
             </div>
 
-            <div className="p-8 rounded-3xl flex flex-col justify-between min-h-[240px] transition-all duration-300 relative overflow-hidden group" style={{ background: "linear-gradient(180deg,rgba(10,5,22,0.95) 0%,rgba(5,3,12,0.98) 100%)", border: "1px solid rgba(34,211,238,0.15)" }}>
+            <div className="p-5 sm:p-8 rounded-3xl flex flex-col justify-between min-h-[220px] sm:min-h-[240px] transition-all duration-300 relative overflow-hidden group" style={{ background: "linear-gradient(180deg,rgba(10,5,22,0.95) 0%,rgba(5,3,12,0.98) 100%)", border: "1px solid rgba(34,211,238,0.15)" }}>
               <div className="absolute top-0 right-0 w-40 h-40 rounded-full blur-3xl transition-all group-hover:opacity-100 opacity-50" style={{ backgroundColor: "rgba(34,211,238,0.08)" }} />
               <div className="space-y-4 relative z-10">
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: "rgba(34,211,238,0.1)", border: "1px solid rgba(34,211,238,0.3)" }}>
@@ -319,8 +351,8 @@ export default function Index() {
         </section>
 
         {/* ── TESTIMONIOS ── */}
-        <section className="py-12 max-w-5xl mx-auto px-6">
-          <div className="text-center mb-10 space-y-2">
+        <section className="py-8 sm:py-12 max-w-5xl mx-auto px-6">
+          <div className="text-center mb-6 sm:mb-10 space-y-2">
             <div className="inline-flex items-center gap-2 text-[10px] font-bold tracking-widest uppercase px-3 py-1.5 rounded-full" style={{ color: "#a855f7", backgroundColor: "rgba(168,85,247,0.1)", border: "1px solid rgba(168,85,247,0.2)" }}>
               <Sparkles className="w-3 h-3" />
               Resultados Reales
@@ -334,14 +366,14 @@ export default function Index() {
         </section>
 
         {/* ── CTA CON MARQUEE ── */}
-        <section className="py-8 max-w-5xl mx-auto px-6">
-          <CTAWithMarquee onCTAClick={scrollToCalendly} />
+        <section className="py-6 sm:py-8 max-w-5xl mx-auto px-6">
+          <CTAWithMarquee onCTAClick={openCalendlyPopup} />
         </section>
 
         {/* ── CALENDLY ── */}
-        <section id="calendly" className="py-12 max-w-3xl mx-auto px-6">
+        <section id="calendly" className="py-8 sm:py-12 max-w-3xl mx-auto px-6">
           <div
-            className="rounded-3xl p-8 sm:p-12 text-center relative overflow-hidden"
+            className="rounded-3xl p-6 sm:p-12 text-center relative overflow-hidden"
             style={{ background: "linear-gradient(135deg,rgba(168,85,247,0.12) 0%,rgba(10,5,22,0.97) 60%)", border: "1px solid rgba(168,85,247,0.25)", boxShadow: "0 0 80px rgba(168,85,247,0.08)" }}
           >
             {/* Glow decoration */}
@@ -355,7 +387,7 @@ export default function Index() {
               </div>
 
               <div>
-                <h2 className="text-2xl sm:text-4xl font-black mb-3" style={{ color: "#ffffff" }}>Reservá tu llamada de 30 min</h2>
+                <h2 className="text-xl sm:text-4xl font-black mb-3" style={{ color: "#ffffff" }}>Reservá tu llamada de 30 min</h2>
                 <p className="text-sm leading-relaxed max-w-md mx-auto" style={{ color: "#a1a1aa" }}>
                   Analizamos tu negocio, identificamos qué tareas te están costando plata cada día y te mostramos cómo automatizarlas.
                   <strong style={{ color: "#e4e4e7" }}> Sin compromiso. Sin costo.</strong>
@@ -398,7 +430,7 @@ export default function Index() {
         </section>
 
         {/* ── FORMULARIO DE CONTACTO ── */}
-        <section id="contacto" className="py-12 max-w-md mx-auto px-6">
+        <section id="contacto" className="py-8 sm:py-12 max-w-md mx-auto px-6">
           <div className="text-center mb-6 space-y-1">
             <h2 className="text-xl font-black text-white">¿Preferís escribirnos?</h2>
             <p className="text-zinc-500 text-xs">También podés enviarnos un mensaje directamente.</p>

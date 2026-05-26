@@ -155,12 +155,12 @@
 
   html { scroll-behavior: smooth; }
 
-  /* Hide Spline watermark */
-  a[href^="https://spline.design"] {
-    display: none !important;
-  }
-  #spline-logo {
-    display: none !important;
+  /* Hide any Spline DOM watermark elements (DOM-injected badges) */
+  a[href*="spline.design"],
+  [data-spline-attribution],
+  #spline-watermark {
+    opacity: 0 !important;
+    pointer-events: none !important;
   }
 
   body {
