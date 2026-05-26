@@ -52,7 +52,7 @@ export function InteractiveRobotSpline({ scene, className }: InteractiveRobotSpl
   const handleLoad = useCallback(() => setLoaded(true), []);
 
   return (
-    <div className={className ?? 'w-full h-full min-h-[320px] sm:min-h-[440px]'}>
+    <div className={className ?? 'w-full h-full min-h-[260px] sm:min-h-[360px]'}>
       <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
         {/* Gradient placeholder visible until Spline finishes loading */}
         {!loaded && (
