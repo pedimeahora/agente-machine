@@ -42,8 +42,8 @@ export function Footer() {
         <div className="mt-12 flex flex-col md:flex-row md:items-center md:justify-between gap-4 text-xs text-muted-foreground border-t border-border pt-6">
           <div>© {new Date().getFullYear()} Agente Machine. Todos los derechos reservados.</div>
           <div className="flex gap-6">
-            <a href="#" className="hover:text-foreground transition">Privacidad</a>
-            <a href="#" className="hover:text-foreground transition">Términos</a>
+            <a href="/privacidad" className="hover:text-foreground transition">Privacidad</a>
+            <a href="/terminos" className="hover:text-foreground transition">Términos</a>
           </div>
         </div>
       </div>
